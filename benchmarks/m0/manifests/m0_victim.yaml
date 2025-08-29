@@ -1,0 +1,40 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: m0-victim
+  namespace: default
+  labels:
+    app: nerrf-benchmark
+    component: victim
+spec:
+  restartPolicy: Never
+  containers:
+  - name: victim
+    image: python:3.11-slim
+    command: ["sh", "-c"]
+    args:
+    - |
+      apt-get update && apt-get install -y strace procps
+      echo "Starting LockBit simulation..."
+      python3 /tmp/sim_lockbit.py
+    volumeMounts:
+    - name: uploads
+      mountPath: /app/uploads
+    - name: script
+      mountPath: /tmp/sim_lockbit.py
+      subPath: sim_lockbit.py
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "250m"
+      limits:
+        memory: "512Mi"
+        cpu: "500m"
+  volumes:
+  - name: uploads
+    emptyDir:
+      sizeLimit: "1Gi"
+  - name: script
+    configMap:
+      name: lockbit-simulator
+      defaultMode: 0755
