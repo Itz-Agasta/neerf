@@ -1,9 +1,0 @@
-{
-  "timestamp": "2025-08-29T16:47:31Z",
-  "platform": "minikube",
-  "encrypted_files": 25,
-  "total_size_bytes": 14430069,
-  "total_size_mb": 13,
-  "trace_events": 86,
-  "target_directory": "/app/uploads"
-}
