@@ -1,17 +1,19 @@
 #!/usr/bin/env bash
-# M1 Enterprise-Scale Bootstrap Script     kubectl create configmap lockbit-simulator-m1 \
-        --from-file=sim_lockbit_m1.py="${SCRIPT_DIR}/sim_lockbit_m1.py" \
-        --namespace="$NAMESPACE" \ERRF LockBit Benchmark
+# M1 Enterprise-Scale Bootstrap Script - NERRF LockBit Benchmark
 # Usage: ./scripts/m1_minikube_bootstrap.sh
 
 set -e
 
 # Configuration
 NAMESPACE="nerrf-m1"
-TRACE_FILE="./results/m1_trace.jsonl"
-GT_FILE="./results/m1_ground_truth.csv"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+RESULTS_DIR="$SCRIPT_DIR/../results"
+TRACE_FILE="$RESULTS_DIR/m1_trace.jsonl"
+GT_FILE="$RESULTS_DIR/m1_ground_truth.csv"
+FILE_LIST="$RESULTS_DIR/file_list.txt"
+METADATA_FILE="$RESULTS_DIR/metadata.json"
+RECOVERY_RESULTS="$RESULTS_DIR/m1_recovery_results.json"
 
 # Colors for output
 RED='\033[0;31m'
@@ -30,6 +32,25 @@ warn() {
 error() {
     echo -e "${RED}[$(date +'%H:%M:%S')] ERROR: $1${NC}"
     exit 1
+}
+
+clear_old_results() {
+    log "Clearing old M1 results for fresh run..."
+    
+    # Ensure results directory exists
+    mkdir -p "$RESULTS_DIR"
+    
+    # Clear old result files
+    local files_to_clear=("$TRACE_FILE" "$GT_FILE" "$FILE_LIST" "$METADATA_FILE" "$RECOVERY_RESULTS")
+    
+    for file in "${files_to_clear[@]}"; do
+        if [[ -f "$file" ]]; then
+            rm -f "$file"
+            log "Cleared: $file"
+        fi
+    done
+    
+    log "Results directory cleaned and ready"
 }
 
 check_minikube() {
@@ -154,8 +175,7 @@ run_m1_simulation() {
     log "Running M1 enterprise-scale LockBit simulation..."
     
     # Create required directories
-    mkdir -p "${ROOT_DIR}/datasets/m1"
-    mkdir -p "./results"
+    mkdir -p "$RESULTS_DIR"
     
     START_TIME=$(date +%s)
     START_ISO=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
@@ -219,17 +239,23 @@ collect_m1_artifacts() {
     
     rm -f "${TRACE_FILE}.tmp"
     
-    log "Collecting M1 file system state..."
-    kubectl exec m1-victim -n "$NAMESPACE" -- find /app/uploads -type f -exec ls -la {} \; > "${ROOT_DIR}/datasets/m1/file_list.txt" 2>/dev/null || true
+    # Collect file_list.txt from pod (primary)
+    log "Collecting M1 file listing from pod..."
+    kubectl exec m1-victim -n "$NAMESPACE" -- cat /tmp/file_list.txt > "$FILE_LIST" 2>/dev/null || {
+        warn "file_list.txt not found in pod, generating backup listing"
+        kubectl exec m1-victim -n "$NAMESPACE" -- find /app/uploads -type f -exec ls -la {} \; > "$FILE_LIST" 2>/dev/null || echo "No files found" > "$FILE_LIST"
+    }
     
-    local encrypted_count=$(kubectl exec m1-victim -n "$NAMESPACE" -- find /app/uploads -name "*.lockbit3" 2>/dev/null | wc -l || echo "0")
-    local total_size=$(kubectl exec m1-victim -n "$NAMESPACE" -- du -sb /app/uploads 2>/dev/null | cut -f1 || echo "0")
-    
-    # Calculate enterprise metrics
-    local avg_file_size=$((total_size / encrypted_count))
-    local throughput_estimate=$(echo "scale=2; $total_size / 1024 / 1024 / 120" | bc -l 2>/dev/null || echo "1.0")
-    
-    cat > "${ROOT_DIR}/datasets/m1/metadata.json" << EOF
+    # Collect metadata.json from pod (primary)
+    log "Collecting M1 metadata from pod..."
+    kubectl exec m1-victim -n "$NAMESPACE" -- cat /tmp/metadata.json > "$METADATA_FILE" 2>/dev/null || {
+        warn "metadata.json not found in pod, generating backup metadata"
+        local encrypted_count=$(kubectl exec m1-victim -n "$NAMESPACE" -- find /app/uploads -name "*.lockbit3" 2>/dev/null | wc -l || echo "0")
+        local total_size=$(kubectl exec m1-victim -n "$NAMESPACE" -- du -sb /app/uploads 2>/dev/null | cut -f1 || echo "0")
+        local avg_file_size=$((total_size / encrypted_count))
+        local throughput_estimate=$(echo "scale=2; $total_size / 1024 / 1024 / 120" | bc -l 2>/dev/null || echo "1.0")
+        
+        cat > "$METADATA_FILE" << EOF
 {
   "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
   "platform": "minikube",
@@ -243,12 +269,12 @@ collect_m1_artifacts() {
   "estimated_throughput_mbps": "$throughput_estimate"
 }
 EOF
+    }
     
-    log "✅ M1 artifacts collected:"
+    log "✅ Enhanced M1 artifacts collected:"
     log "   - Trace file: $TRACE_FILE ($(wc -l < "$TRACE_FILE" 2>/dev/null || echo "0") lines)"
-    log "   - Encrypted files: $encrypted_count"
-    log "   - Total size: $((total_size / 1024 / 1024)) MB"
-    log "   - Average file size: $((avg_file_size / 1024 / 1024)) MB"
+    log "   - File list: $FILE_LIST"
+    log "   - Metadata: $METADATA_FILE"
 }
 
 test_m1_recovery() {
@@ -271,7 +297,7 @@ show_m1_results() {
     echo "Scale: Enterprise (100-128 MB, 45-50 files)"
     echo "Namespace: $NAMESPACE"
     echo "Generated files:"
-    ls -lh "${ROOT_DIR}/datasets/m1/" 2>/dev/null || echo "No files generated"
+    ls -lh "$RESULTS_DIR/" 2>/dev/null || echo "No files generated"
     echo ""
     echo "M1 validation commands:"
     echo "  kubectl exec m1-victim -n $NAMESPACE -- ls -la /app/uploads"
@@ -280,12 +306,11 @@ show_m1_results() {
     echo ""
     echo "Cleanup commands:"
     echo "  kubectl delete namespace $NAMESPACE"
-    echo "  rm -rf ${ROOT_DIR}/datasets/m1"
     echo ""
     
-    if [[ -f "${ROOT_DIR}/datasets/m1/metadata.json" ]]; then
+    if [[ -f "../results/metadata.json" ]]; then
         echo "M1 Metadata:"
-        cat "${ROOT_DIR}/datasets/m1/metadata.json" | jq .
+        cat "../results/metadata.json" | jq .
     fi
 }
 
@@ -294,6 +319,7 @@ main() {
     log "======================================================="
     log "Target: 100-128 MB across 45-50 files (2-5 MB each)"
     
+    clear_old_results
     check_minikube
     setup_m1_namespace
     deploy_m1_simulator
