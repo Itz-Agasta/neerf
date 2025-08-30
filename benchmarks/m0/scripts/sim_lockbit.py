@@ -34,6 +34,7 @@ def seed_files(n=20):
     log_event("seed_start", TARGET)
     
     total_size = 0
+    files_created = 0
     for i in range(n):
         file_size = secrets.randbelow(512*1024) + 256*1024  # 256KB - 768KB per file
         file_path = pathlib.Path(TARGET) / f"document_{i:03d}.dat"
@@ -48,13 +49,15 @@ def seed_files(n=20):
                 written += chunk_size
                 
         total_size += file_size
+        files_created += 1
         log_event("file_created", file_path, file_size)
         
         # Small delay between file creation
         time.sleep(0.1)
     
-    print(f"[+] Seeded {n} files, total size: {total_size/1024/1024:.2f} MB")
+    print(f"[+] Seeded {files_created} files, total size: {total_size/1024/1024:.2f} MB")
     log_event("seed_complete", TARGET, total_size)
+    return files_created, total_size
 
 def encrypt_files():
     """Simulate LockBit-style encryption with realistic timing"""
@@ -160,28 +163,72 @@ def simulate_lateral_movement():
     
     log_event("lateral_movement_complete", "/")
 
-def main():
-    """Main LockBit simulation flow"""
-    print("=" * 60)
-    print("NERRF M0 Ethical LockBit Simulation")
-    print("=" * 60)
-    
-    start_time = datetime.utcnow()
-    log_event("simulation_start", TARGET)
-    
+def generate_file_list():
+    """Generate file_list.txt for consistency with m1"""
+    import subprocess
+    result_path = "/tmp/file_list.txt"
     try:
-        # Phase 1: Initial access (already simulated by pod deployment)
-        print("[Phase 1] Initial access - SIMULATED")
-        time.sleep(1)
+        # Use ls -la to get detailed file listing
+        cmd = f"ls -la {TARGET}/*.lockbit3 > {result_path} 2>/dev/null || echo 'No encrypted files found' > {result_path}"
+        subprocess.run(cmd, shell=True, check=False)
+        log_event("file_list_generated", result_path)
+        print(f"[+] File list generated: {result_path}")
+    except Exception as e:
+        print(f"[-] Error generating file list: {e}")
+
+def generate_metadata(start_time, end_time, num_files, total_size):
+    """Generate metadata.json for consistency with m1"""
+    metadata = {
+        "timestamp": end_time.isoformat() + "Z",
+        "platform": "minikube",
+        "scale": "basic",
+        "encrypted_files": num_files,
+        "total_size_bytes": total_size,
+        "total_size_mb": round(total_size / 1024 / 1024, 2),
+        "avg_file_size_mb": round((total_size / 1024 / 1024) / num_files, 2) if num_files > 0 else 0,
+        "trace_events": "estimated_87",
+        "target_directory": TARGET,
+        "duration_seconds": round((end_time - start_time).total_seconds(), 2),
+        "estimated_throughput_mbps": f"{round((total_size / 1024 / 1024) / (end_time - start_time).total_seconds(), 2)}"
+    }
+    
+    result_path = "/tmp/metadata.json"
+    try:
+        with open(result_path, 'w') as f:
+            json.dump(metadata, f, indent=2)
+        log_event("metadata_generated", result_path)
+        print(f"[+] Metadata generated: {result_path}")
+    except Exception as e:
+        print(f"[-] Error generating metadata: {e}")
+
+def clear_old_results():
+    """Clear old result files before starting new simulation"""
+    result_files = ["/tmp/file_list.txt", "/tmp/metadata.json"]
+    for file_path in result_files:
+        try:
+            if os.path.exists(file_path):
+                os.remove(file_path)
+                print(f"[+] Cleared old result: {file_path}")
+        except Exception as e:
+            print(f"[-] Error clearing {file_path}: {e}")
+
+def main():
+    """Main simulation workflow"""
+    try:
+        # Clear old results first
+        clear_old_results()
         
-        # Phase 2: Discovery and reconnaissance
-        print("[Phase 2] Discovery and reconnaissance")
+        start_time = datetime.utcnow()
+        log_event("simulation_start", TARGET)
+        
+        # Phase 1: Initial lateral movement
+        print("[Phase 1] Initial access and lateral movement")
         simulate_lateral_movement()
         time.sleep(2)
         
         # Phase 3: File seeding (victim data)
         print("[Phase 3] Creating victim files")
-        seed_files(25)  # Create ~15-20 MB of data
+        num_files, total_size = seed_files(25)  # Create ~15-20 MB of data
         time.sleep(1)
         
         # Phase 4: Encryption (main attack)
@@ -195,10 +242,20 @@ def main():
         end_time = datetime.utcnow()
         duration = (end_time - start_time).total_seconds()
         
+        # Get actual encrypted file count and size
+        encrypted_files = list(pathlib.Path(TARGET).glob('*.lockbit3'))
+        actual_count = len(encrypted_files)
+        actual_size = sum(f.stat().st_size for f in encrypted_files)
+        
         log_event("simulation_complete", TARGET)
         print(f"[+] Simulation complete in {duration:.1f} seconds")
         print(f"[+] Attack artifacts in: {TARGET}")
-        print(f"[+] Files to recover: {len(list(pathlib.Path(TARGET).glob('*.lockbit3')))}")
+        print(f"[+] Files to recover: {actual_count}")
+        print(f"[+] Total encrypted data: {actual_size/1024/1024:.2f} MB")
+        
+        # Generate result files for consistency
+        generate_file_list()
+        generate_metadata(start_time, end_time, actual_count, actual_size)
         
         # Keep pod alive for trace collection
         print("[+] Keeping pod alive for 30 seconds for trace collection...")

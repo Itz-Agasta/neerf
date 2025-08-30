@@ -6,10 +6,14 @@ set -e
 
 # Configuration
 NAMESPACE="nerrf-m0"
-TRACE_FILE="./results/m0_trace.jsonl"
-GT_FILE="./results/m0_ground_truth.csv"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+RESULTS_DIR="$SCRIPT_DIR/../results"
+TRACE_FILE="$RESULTS_DIR/m0_trace.jsonl"
+GT_FILE="$RESULTS_DIR/m0_ground_truth.csv"
+FILE_LIST="$RESULTS_DIR/file_list.txt"
+METADATA_FILE="$RESULTS_DIR/metadata.json"
+RECOVERY_RESULTS="$RESULTS_DIR/m0_recovery_results.json"
 
 # Colors for output
 RED='\033[0;31m'
@@ -28,6 +32,25 @@ warn() {
 error() {
     echo -e "${RED}[$(date +'%H:%M:%S')] ERROR: $1${NC}"
     exit 1
+}
+
+clear_old_results() {
+    log "Clearing old M0 results for fresh run..."
+    
+    # Ensure results directory exists
+    mkdir -p "$RESULTS_DIR"
+    
+    # Clear old result files
+    local files_to_clear=("$TRACE_FILE" "$GT_FILE" "$FILE_LIST" "$METADATA_FILE" "$RECOVERY_RESULTS")
+    
+    for file in "${files_to_clear[@]}"; do
+        if [[ -f "$file" ]]; then
+            rm -f "$file"
+            log "Cleared: $file"
+        fi
+    done
+    
+    log "Results directory cleaned and ready"
 }
 
 check_minikube() {
@@ -159,8 +182,7 @@ run_simulation() {
     log "Running LockBit simulation in Minikube..."
     
     # Create required directories
-    mkdir -p "${ROOT_DIR}/datasets/m0"
-    mkdir -p "./results"
+    mkdir -p "$RESULTS_DIR"
     
     # Record start time
     START_TIME=$(date +%s)
@@ -231,31 +253,39 @@ collect_artifacts() {
     # Clean up temp file
     rm -f "${TRACE_FILE}.tmp"
     
-    # Get file listing from pod
-    log "Collecting file system state..."
-    kubectl exec m0-victim -n "$NAMESPACE" -- find /app/uploads -type f -exec ls -la {} \; > "${ROOT_DIR}/datasets/m0/file_list.txt" 2>/dev/null || true
+    # Collect file_list.txt from pod
+    log "Collecting file listing from pod..."
+    kubectl exec m0-victim -n "$NAMESPACE" -- cat /tmp/file_list.txt > "$FILE_LIST" 2>/dev/null || {
+        warn "file_list.txt not found in pod, generating backup listing"
+        kubectl exec m0-victim -n "$NAMESPACE" -- find /app/uploads -type f -exec ls -la {} \; > "$FILE_LIST" 2>/dev/null || echo "No files found" > "$FILE_LIST"
+    }
     
-    # Get encrypted file count and sizes
-    local encrypted_count=$(kubectl exec m0-victim -n "$NAMESPACE" -- find /app/uploads -name "*.lockbit3" 2>/dev/null | wc -l || echo "0")
-    local total_size=$(kubectl exec m0-victim -n "$NAMESPACE" -- du -sb /app/uploads 2>/dev/null | cut -f1 || echo "0")
-    
-    # Save metadata
-    cat > "${ROOT_DIR}/datasets/m0/metadata.json" << EOF
+    # Collect metadata.json from pod
+    log "Collecting metadata from pod..."
+    kubectl exec m0-victim -n "$NAMESPACE" -- cat /tmp/metadata.json > "$METADATA_FILE" 2>/dev/null || {
+        warn "metadata.json not found in pod, generating backup metadata"
+        local encrypted_count=$(kubectl exec m0-victim -n "$NAMESPACE" -- find /app/uploads -name "*.lockbit3" 2>/dev/null | wc -l || echo "0")
+        local total_size=$(kubectl exec m0-victim -n "$NAMESPACE" -- du -sb /app/uploads 2>/dev/null | cut -f1 || echo "0")
+        
+        cat > "$METADATA_FILE" << EOF
 {
   "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
   "platform": "minikube",
+  "scale": "basic",
   "encrypted_files": $encrypted_count,
   "total_size_bytes": $total_size,
   "total_size_mb": $((total_size / 1024 / 1024)),
   "trace_events": $(wc -l < "$TRACE_FILE" 2>/dev/null || echo "0"),
-  "target_directory": "/app/uploads"
+  "target_directory": "/app/uploads",
+  "estimated_throughput_mbps": "1.0"
 }
 EOF
+    }
     
-    log "✅ Artifacts collected:"
+    log "✅ Enhanced artifacts collected:"
     log "   - Trace file: $TRACE_FILE ($(wc -l < "$TRACE_FILE" 2>/dev/null || echo "0") lines)"
-    log "   - Encrypted files: $encrypted_count"
-    log "   - Total size: $((total_size / 1024 / 1024)) MB"
+    log "   - File list: $FILE_LIST"
+    log "   - Metadata: $METADATA_FILE"
 }
 
 test_recovery() {
@@ -314,7 +344,7 @@ show_results() {
     echo "Platform: Minikube"
     echo "Namespace: $NAMESPACE"
     echo "Generated files:"
-    ls -lh "${ROOT_DIR}/datasets/m0/" 2>/dev/null || echo "No files generated"
+    ls -lh "$RESULTS_DIR/" 2>/dev/null || echo "No files generated"
     echo ""
     echo "Quick validation commands:"
     echo "  kubectl exec m0-victim -n $NAMESPACE -- ls -la /app/uploads"
@@ -323,12 +353,11 @@ show_results() {
     echo ""
     echo "Cleanup commands:"
     echo "  kubectl delete namespace $NAMESPACE"
-    echo "  rm -rf ${ROOT_DIR}/datasets/m0"
     echo ""
     
-    if [[ -f "${ROOT_DIR}/datasets/m0/metadata.json" ]]; then
+    if [[ -f "$METADATA_FILE" ]]; then
         echo "Metadata:"
-        cat "${ROOT_DIR}/datasets/m0/metadata.json"
+        cat "$METADATA_FILE"
     fi
 }
 
@@ -336,6 +365,7 @@ main() {
     log "🚀 Starting NERRF M0 Benchmark on Minikube"
     log "========================================"
     
+    clear_old_results
     check_minikube
     setup_namespace
     deploy_simulator
