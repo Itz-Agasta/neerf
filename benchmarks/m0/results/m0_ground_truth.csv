@@ -1,0 +1,2 @@
+start_ts,end_ts,start_iso,end_iso,attack_family,target_path,duration_sec,platform
+1756562706,1756562767,2025-08-30T14:05:06Z,2025-08-30T14:06:07Z,LockBitEthical,/app/uploads,61,minikube

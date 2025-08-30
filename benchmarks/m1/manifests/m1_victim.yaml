@@ -1,0 +1,41 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: m1-victim
+  namespace: default
+  labels:
+    app: neerf-benchmark
+    component: victim
+    scale: enterprise
+spec:
+  restartPolicy: Never
+  containers:
+    - name: victim
+      image: python:3.11-slim
+      command: ["sh", "-c"]
+      args:
+        - |
+          apt-get update && apt-get install -y strace procps
+          echo "Starting M1 Enterprise LockBit simulation..."
+          python3 /tmp/sim_lockbit_m1.py
+      volumeMounts:
+        - name: uploads
+          mountPath: /app/uploads
+        - name: script
+          mountPath: /tmp/sim_lockbit_m1.py
+          subPath: sim_lockbit_m1.py
+      resources:
+        requests:
+          memory: "512Mi"
+          cpu: "500m"
+        limits:
+          memory: "1Gi"
+          cpu: "1000m"
+  volumes:
+    - name: uploads
+      emptyDir:
+        sizeLimit: "2Gi"
+    - name: script
+      configMap:
+        name: lockbit-simulator-m1
+        defaultMode: 0755

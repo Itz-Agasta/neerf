@@ -1,0 +1,13 @@
+{
+  "timestamp": "2025-08-30T14:06:06.033150Z",
+  "platform": "minikube",
+  "scale": "basic",
+  "encrypted_files": 25,
+  "total_size_bytes": 12786104,
+  "total_size_mb": 12.19,
+  "avg_file_size_mb": 0.49,
+  "trace_events": "estimated_87",
+  "target_directory": "/app/uploads",
+  "duration_seconds": 19.81,
+  "estimated_throughput_mbps": "0.62"
+}

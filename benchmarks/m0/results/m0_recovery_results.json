@@ -1,0 +1,12 @@
+{
+  "timestamp": "2025-08-30T14:06:08Z",
+  "platform": "minikube",
+  "scale": "basic",
+  "recovered_files": 25,
+  "recovery_duration_ms": 22,
+  "recovery_duration_sec": .022,
+  "avg_recovery_per_file_ms": .88,
+  "recovery_rate_fps": 1136.36,
+  "total_size_mb": "13",
+  "throughput_mbps": 590.90
+}
