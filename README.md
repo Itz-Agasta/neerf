@@ -1,10 +1,9 @@
 # Neural Execution Reversal & Recovery Framework (NERRF)
+<img width="1280" height="640" alt="neerf_banner" src="https://github.com/user-attachments/assets/ca44763d-c256-4126-8bce-b471efe72d5e" />
 
 > NERRF is an open-source project exploring AI-driven **"undo computing"** for post-zero-trust cloud and IoT environments. This MVP implements a fine-grained rollback system using eBPF instrumentation, Graph Neural Networks (GNN), Long Short-Term Memory (LSTM) models, and Monte-Carlo Tree Search (MCTS) to reverse ransomware attacks (e.g., LockBit-style) on Kubernetes clusters. Aimed at reducing Mean Time to Recovery (MTTR) < 60 min and data loss < 128 MB, NERRF targets security researchers, cloud engineers, and AI practitioners. it offers a scalable, reproducible framework with Helm deployment and synthetic datasets!!
 
-> [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](LICENSE)
-> [![arXiv](https://img.shields.io/badge/arXiv-2025.xxxxx-b31b1b.svg)](https://arxiv.org/abs/2025.xxxxx)  
-> [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.xxxxxxxx.svg)](https://doi.org/10.5281/zenodo.xxxxxxxx)
+> [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](LICENSE) [![arXiv](https://img.shields.io/badge/arXiv-2025.xxxxx-b31b1b.svg)](https://arxiv.org/abs/2025.xxxxx)  [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.xxxxxxxx.svg)](https://doi.org/10.5281/zenodo.xxxxxxxx)
 
 ---
 
