@@ -32,20 +32,6 @@ cd benchmarks/m1/scripts
 ./m1_minikube_bootstrap.sh
 ```
 
-## Results Analysis
-
-### M0 Results
-
-- **Location**: `benchmarks/m0/results/`
-- **Key Files**: `metadata.json`, `m0_trace.jsonl`, `m0_ground_truth.csv`
-- **Performance**: MTTR < 5s, 86 trace events
-
-### M1 Results
-
-- **Location**: `benchmarks/m1/results/`
-- **Key Files**: `metadata.json`, `m1_trace.jsonl`, `m1_ground_truth.csv`
-- **Performance**: MTTR < 1s, 152 trace events
-
 ## Integration with NEERF Components
 
 - **eBPF Tracker**: Use trace patterns from `*_trace.jsonl`
