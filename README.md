@@ -1,5 +1,6 @@
 # Neural Execution Reversal & Recovery Framework (NERRF)
-<img width="1280" height="640" alt="neerf_banner" src="https://github.com/user-attachments/assets/ca44763d-c256-4126-8bce-b471efe72d5e" />
+
+<img width="1280" height="640" alt="neerf_banner2" src="https://github.com/user-attachments/assets/70fe229a-b41c-4910-a265-3a807773f35f" />
 
 > NERRF is an open-source project exploring AI-driven **"undo computing"** for post-zero-trust cloud and IoT environments. This MVP implements a fine-grained rollback system using eBPF instrumentation, Graph Neural Networks (GNN), Long Short-Term Memory (LSTM) models, and Monte-Carlo Tree Search (MCTS) to reverse ransomware attacks (e.g., LockBit-style) on Kubernetes clusters. Aimed at reducing Mean Time to Recovery (MTTR) < 60 min and data loss < 128 MB, NERRF targets security researchers, cloud engineers, and AI practitioners. it offers a scalable, reproducible framework with Helm deployment and synthetic datasets!!
 
