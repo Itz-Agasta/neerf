@@ -45,19 +45,19 @@ _“Ship the smallest slice that proves AI-guided undo in the cloud”_
 
 ### M0 – Research Lock-in (2 weeks)
 
-- [ ] Finalise attack scenario (LockBit encrypt `/app/uploads`)
-- [ ] Freeze protobuf schema (`trace.proto`)
+- [x] Finalise attack scenario (LockBit encrypt `/app/uploads`)
+- [x] Freeze protobuf schema (`trace.proto`)
 - [ ] Freeze evaluation dataset (100 h benign + 1 h labelled attack)
 
 ### M1 – Tracker Alpha (9 weeks)
 
-| Week  | Task                                                    |
-| ----- | ------------------------------------------------------- |
-| W1-W2 | eBPF probes: `vfs_write`, `vfs_open`, `clone`, `execve` |
-| W3-W4 | gRPC service (`port 50051`) + Ring-buffer               |
-| W5-W6 | RocksDB writer & compaction logic                       |
-| W7-W8 | Prometheus metrics (`nerrf_tracker_events_total`)       |
-| W9    | Load-test: 1 k events/sec on 4-core VM                  |
+| Week  | Task (trace-point first, zero-deps)                                                            |
+| ----- | ---------------------------------------------------------------------------------------------- |
+| W1-W2 | **Trace-point probes**: `sys_enter_openat`, `sys_enter_write`, `sys_enter_rename` (C + libbpf) |
+| W3-W4 | gRPC server (port 50051) + ring-buffer Go wrapper                                              |
+| W5-W6 | RocksDB writer & 30-s delta compaction                                                         |
+| W7-W8 | Prometheus metrics + **public install script** (`scripts/install-deps.sh`)                     |
+| W9    | Load-test ≥1 k evt/sec on **4-core cloud VM** (<5 % CPU) → tag **v0.1.0**                      |
 
 ### M2 – AI Spike (6 weeks)
 
@@ -115,9 +115,14 @@ nerrf/
 │   ├── workflows/ci.yml
 │   └── workflows/demo.yml
 ├── tracker/
-│   ├── bpf/*.bpf.c
-│   ├── cmd/tracker
-│   └── Dockerfile
+│   ├── bpf/
+│   │   └── tracepoints.c    # sys_enter_openat/write/rename
+│   ├── cmd/tracker/         # gRPC server (Go)
+│   ├── pkg/bpf/             # libbpf loader + ring-buffer
+│   ├── scripts/
+│   │   └── install-deps.sh  # one-liner apt/dnf
+│   ├── Dockerfile.minimal   # no kernel headers needed
+│   └── README.md
 ├── ai/
 │   ├── models/graphsage.py
 │   ├── planner/mcts.py
