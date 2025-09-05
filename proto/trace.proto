@@ -1,0 +1,48 @@
+syntax = "proto3";
+package nerrf.trace;
+
+option go_package = "nerrf/trace";
+
+import "google/protobuf/timestamp.proto";
+
+// One eBPF event per syscall
+// Version 0.1 - Final for M0, extensible for M1
+message Event {
+  google.protobuf.Timestamp ts = 1; // Absolute UTC timestamp for event ordering
+  uint32 pid                   = 2; // PID of the calling task
+  uint32 tid                   = 3; // TID (same as PID if single-threaded)
+  string comm                  = 4; // Executable name (e.g., "python3")
+
+  // --- syscall identity ---
+  string syscall               = 5; // e.g., "openat", "write", "rename", "unlink"
+
+  // --- file / path fields ---
+  string path                  = 6; // Absolute path (UTF-8)
+  string new_path              = 7; // Only for rename / link
+
+  // --- open flags & return code ---
+  enum OpenFlags {
+    O_RDONLY  = 0; // Read-only
+    O_WRONLY  = 1; // Write-only
+    O_RDWR    = 2; // Read-write
+  }
+  OpenFlags flags              = 8; // Open flags (for openat/open)
+  sint64 ret_val               = 9; // File descriptor or error code, e.g., -EBADF
+
+  // --- write / read specific ---
+  uint64 bytes                 = 10; // Bytes written or read
+
+  // --- metadata for LockBit detection ---
+  string inode                 = 11; // Inode as string (to avoid uint64 overflow)
+  uint32 mode                  = 12; // File mode (octal, optional)
+  uint64 uid                   = 13; // User ID, optional
+  uint64 gid                   = 14; // Group ID, optional
+
+  // --- dependency tracking ---
+  repeated string dependencies = 15; // Dependencies for graph construction (e.g., input files or processes)
+}
+
+// Stream envelope (one per line in trace.jsonl)
+message EventBatch {
+  repeated Event events = 1;
+}
