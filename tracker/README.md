@@ -14,3 +14,22 @@ tracker/
 ├── Makefile               # `make run` → builds + starts server
 └── README.md              # quick-start for contributors
 ```
+
+```
+protoc -I=proto \
+  --go_out=tracker/pkg/pb --go_opt=paths=source_relative \
+  --go-grpc_out=tracker/pkg/pb --go-grpc_opt=paths=source_relative \
+  proto/trace.proto
+```
+
+```
+sudo ./tracker/bin/tracker
+```
+
+This will output `2025/09/09 11:49:25 Tracker listening on :50051`
+
+To stream live events
+
+```
+grpcurl -plaintext -d '{}' localhost:50051 nerrf.trace.Tracker/StreamEvents
+```

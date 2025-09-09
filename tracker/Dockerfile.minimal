@@ -1,0 +1,21 @@
+# Dockerfile.minimal  – single-stage, no kernel headers at runtime
+FROM golang:1.23-bullseye AS builder
+
+# 1. install build deps
+RUN apt-get update && \
+    apt-get install -y clang llvm libbpf-dev linux-headers-amd64
+
+# 2. copy source
+WORKDIR /build
+COPY . .
+
+# 3. build BPF object + Go binary
+RUN make bpf && \
+    make tracker
+
+# 4. final slim image (no headers needed)
+FROM debian:bullseye-slim
+
+COPY --from=builder /build/bin/tracker /usr/local/bin/
+COPY --from=builder /build/bpf/tracepoints.o /usr/local/bpf/
+ENTRYPOINT ["tracker"]

@@ -1,6 +1,6 @@
 module github.com/Itz-Agasta/neerf/tracker
 
-go 1.25.1
+go 1.23
 
 require (
 	github.com/cilium/ebpf v0.19.0
