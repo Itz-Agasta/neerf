@@ -6,6 +6,15 @@
 
 char LICENSE[] SEC("license") = "GPL";
 
+struct trace_event_raw_sys_enter {
+    unsigned short common_type;
+    unsigned char common_flags;
+    unsigned char common_preempt_count;
+    int common_pid;
+    long int id;
+    unsigned long args[6];
+};
+
 struct event {
     __u64 ts;
     __u32 pid;
@@ -50,8 +59,8 @@ int trace_write(struct trace_event_raw_sys_enter *ctx) {
     fill_common(e, (struct pt_regs *)ctx);
     e->syscall_id = 2;
     e->bytes = ctx->args[2];  // count arg
-    const char *filename = (const char *)ctx->args[0]; // fd→path lookup skipped for brevity
-    bpf_probe_read_user_str(&e->path, sizeof(e->path), filename);
+    // Initialize path to empty
+    __builtin_memset(e->path, 0, sizeof(e->path));
     bpf_ringbuf_submit(e, 0);
     return 0;
 }
