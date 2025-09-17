@@ -10,7 +10,7 @@ tracker/
 ├── Dockerfile.minimal     # single-stage, no kernel headers needed
 ├── scripts/
 │   └── install-deps.sh    # One-liner for dev deps
-├── go.mod                 # module github.com/Itz-Agasta/NEERF/tracker
+├── go.mod                 # module github.com/Itz-Agasta/neerf/tracker
 ├── Makefile               # `make run` → builds + starts server
 └── README.md              # quick-start for contributors
 ```
@@ -23,6 +23,10 @@ protoc -I=proto \
 ```
 
 ```
+make tracker
+```
+
+```
 sudo ./tracker/bin/tracker
 ```
 
@@ -32,4 +36,10 @@ To stream live events
 
 ```
 grpcurl -plaintext -d '{}' localhost:50051 nerrf.trace.Tracker/StreamEvents
+```
+
+#### Docker Build
+
+```bash
+docker build -f tracker/Dockerfile.minimal -t nerrf/tracker:m1 .
 ```

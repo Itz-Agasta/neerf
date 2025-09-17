@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 	"unicode/utf8"
 
@@ -18,6 +19,7 @@ import (
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"github.com/Itz-Agasta/neerf/tracker/pkg/bpf"
+	"golang.org/x/sys/unix"
 )
 
 func main() {
@@ -28,6 +30,14 @@ func main() {
 	}
 	execDir := filepath.Dir(execPath)
 	objPath := filepath.Join(execDir, "../bpf/tracepoints.o")
+
+	// Set rlimit for eBPF
+	var rLimit unix.Rlimit
+	rLimit.Cur = unix.RLIM_INFINITY
+	rLimit.Max = unix.RLIM_INFINITY
+	if err := unix.Setrlimit(unix.RLIMIT_MEMLOCK, &rLimit); err != nil {
+		log.Fatalf("setrlimit: %v", err)
+	}
 
 	// Load BPF object and attach tracepoints
 	ringBufMap, links, err := bpf.LoadTracepoints(objPath)
@@ -75,6 +85,11 @@ type server struct {
 }
 
 func (s *server) StreamEvents(req *pb.Empty, stream pb.Tracker_StreamEventsServer) error {
+	var info syscall.Sysinfo_t
+	if err := syscall.Sysinfo(&info); err != nil {
+		return err
+	}
+	bootTime := time.Now().Add(-time.Duration(info.Uptime) * time.Second)
 	for {
 		record, err := s.rd.Read()
 		if err != nil {
@@ -84,9 +99,9 @@ func (s *server) StreamEvents(req *pb.Empty, stream pb.Tracker_StreamEventsServe
 		if err := binary.Read(bytes.NewReader(record.RawSample), binary.LittleEndian, &e); err != nil {
 			continue
 		}
-		now := time.Now()
+		eventTime := bootTime.Add(time.Duration(e.Ts) * time.Nanosecond)
 		pbEvent := &pb.Event{
-			Ts:       timestamppb.New(now),
+			Ts:       timestamppb.New(eventTime),
 			Pid:      e.Pid,
 			Tid:      e.Tid,
 			Comm:     sanitizeString(e.Comm[:]),
