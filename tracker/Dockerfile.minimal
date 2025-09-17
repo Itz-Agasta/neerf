@@ -10,12 +10,12 @@ WORKDIR /build
 COPY . .
 
 # 3. build BPF object + Go binary
-RUN make -C tracker bpf && \
-    make -C tracker tracker
+RUN make bpf && \
+    make tracker
 
 # 4. final slim image
 FROM debian:bullseye-slim
 
-COPY --from=builder /build/tracker/bin/tracker /usr/local/bin/
-COPY --from=builder /build/tracker/bpf/tracepoints.o /usr/local/bpf/
+COPY --from=builder /build/bin/tracker /usr/local/bin/
+COPY --from=builder /build/bpf/tracepoints.o /usr/local/bpf/
 ENTRYPOINT ["tracker"]

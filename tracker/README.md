@@ -23,6 +23,7 @@ protoc -I=proto \
 ```
 
 ```
+cd tracker
 make tracker
 ```
 
@@ -43,3 +44,5 @@ grpcurl -plaintext -d '{}' localhost:50051 nerrf.trace.Tracker/StreamEvents
 ```bash
 docker build -f tracker/Dockerfile.minimal -t nerrf/tracker:m1 .
 ```
+
+![grpc](../docs/imgs/gRPC.svg)
