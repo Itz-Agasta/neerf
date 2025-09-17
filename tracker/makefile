@@ -6,7 +6,7 @@ BPF_OBJ      := bpf/tracepoints.o
 TRACKER_BIN  := bin/tracker
 DOCKER_TAG   := nerrf/tracker:m1
 
-.PHONY: all clean bpf tracker docker test
+.PHONY: all clean bpf tracker docker test test-unit test-bench test-minikube install-deps
 
 all: bpf tracker
 
@@ -23,8 +23,30 @@ $(TRACKER_BIN): go.mod $(shell find . -name '*.go')
 docker:
 	docker build -f Dockerfile.minimal -t $(DOCKER_TAG) .
 
-test: docker
-	./scripts/test.sh   # spins minikube + LockBit sim
+# M1 Milestone Tests
+test: test-unit test-bench
+	@echo "✅ All M1 milestone tests completed"
+
+test-unit:
+	@echo "Running unit tests..."
+	cd test && go test -v -run Test
+
+test-bench:
+	@echo "Running performance benchmarks..."
+	cd test && go test -bench=Benchmark -benchtime=60s
+
+test-minikube:
+	@echo "Running Minikube integration tests..."
+	cd test && go test -v -run TestMinikube
+
+test-full: bpf tracker
+	@echo "Running full M1 milestone validation..."
+	./scripts/test.sh
+
+# Install dependencies (requires root)
+install-deps:
+	@echo "📦 Installing dependencies..."
+	curl -sSL https://raw.githubusercontent.com/Itz-Agasta/neerf/tracker/scripts/install-deps.sh | bash
 
 clean:
-	rm -rf bin/ bpf/*.o
+	rm -rf bin/ bpf/*.o test/benchmark_results.txt test/cpu_benchmark.txt
