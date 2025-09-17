@@ -59,7 +59,8 @@ int trace_write(struct trace_event_raw_sys_enter *ctx) {
     fill_common(e, (struct pt_regs *)ctx);
     e->syscall_id = 2;
     e->bytes = ctx->args[2];  // count arg
-    // Initialize path to empty
+    // For write, we get FD in args[0] but can't easily resolve to path in tracepoint
+    //TODO: This is a known limitation - Later we will use kprobe for better path resolution
     __builtin_memset(e->path, 0, sizeof(e->path));
     bpf_ringbuf_submit(e, 0);
     return 0;
