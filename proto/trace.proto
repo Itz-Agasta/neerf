@@ -1,7 +1,8 @@
 syntax = "proto3";
 package nerrf.trace;
 
-option go_package = "nerrf/trace";
+option go_package = "github.com/Itz-Agasta/neerf/tracker/pkg/pb;pb";
+
 
 import "google/protobuf/timestamp.proto";
 
@@ -45,4 +46,12 @@ message Event {
 // Stream envelope (one per line in trace.jsonl)
 message EventBatch {
   repeated Event events = 1;
+}
+
+// Empty message for requests
+message Empty {}
+
+// Tracker service for streaming events
+service Tracker {
+  rpc StreamEvents (Empty) returns (stream EventBatch);
 }

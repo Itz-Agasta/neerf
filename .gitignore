@@ -1,1 +1,37 @@
 pvt/
+
+# Build artifacts and binaries
+**/bin/
+**/bpf/*.o
+*.o
+
+# Test artifacts
+test/benchmark_results.txt
+test/cpu_benchmark.txt
+test/m1_test_report_*.txt
+
+# Temporary files
+*.tmp
+*.log
+*.out
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE files
+.idea/
+*.swp
+*.swo
+*~
+
+# Go specific
+vendor/
+*.test
+coverage.out
+coverage.html
